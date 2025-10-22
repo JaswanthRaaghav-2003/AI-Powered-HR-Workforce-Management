@@ -38,7 +38,7 @@ const PALM_API_KEY =
   process.env.GEMINI_API_KEY || "AIzaSyDmTIp6OlpUjpQuDJWIfmAFekYdZcNy1qo";
 const MONGODB_URI =
   process.env.MONGODB_URI ||
-  "mongodb+srv://jaswanth:Srec123@cluster0.r0dbrfy.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0";
+  "mongodb+srv://Username:Password@cluster0.r0dbrfy.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0";
 
 // Ensure uploads directory
 const uploadsDir = path.join(__dirname, "uploads");
