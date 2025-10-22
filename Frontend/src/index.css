@@ -1,0 +1,141 @@
+@import "tailwindcss";
+
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+body {
+  background-color: #01010a; /* A dark navy/purple color */
+  background-image: radial-gradient(circle at 50% 100%, rgba(34, 46, 151, 0.4), transparent 50%);
+  font-family: sans-serif; /* A clean sans-serif font */
+  scroll-behavior: smooth; 
+   overflow-x: hidden;
+   margin: 0;
+  padding: 0;
+}
+.hero-bg {
+  @apply h-screen w-screen bg-cover bg-center;
+}
+
+.upload-section {
+  @apply flex flex-col items-center justify-center py-16 text-center;
+}
+
+.upload-title {
+  @apply text-4xl font-bold mb-4;
+  color: white;
+  font-weight:lighter;
+}
+
+.upload-description {
+  @apply text-gray-200 max-w-2xl mb-8 px-4;
+}
+
+.upload-box {
+  @apply border-2 border-dashed border-white/70 rounded-lg w-full max-w-xl p-8 flex flex-col items-center justify-center cursor-pointer hover:border-white transition;
+}
+
+.drag-active {
+  @apply border-white bg-white/10;
+}
+
+.upload-content {
+  @apply flex flex-col items-center;
+}
+
+.upload-icon {
+  @apply h-12 w-12 mb-4;
+}
+
+.upload-text {
+  @apply font-semibold text-lg;
+}
+
+.choose-file {
+  @apply underline;
+}
+
+.upload-subtext {
+  @apply text-sm text-gray-300 mt-2;
+}
+
+.upload-success {
+  @apply mt-4 text-green-400 font-semibold;
+}
+
+.login-page,
+.signup-page {
+  @apply flex items-center justify-center min-h-screen;
+}
+
+.login-container,
+.signup-container {
+  @apply bg-white shadow-2xl rounded-2xl p-6 md:p-8 w-[80%] max-w-sm text-center border border-blue-100; /* Smaller padding & width */
+}
+
+
+/* 🏷 Titles */
+.login-title,
+.signup-title {
+  @apply text-2xl font-bold text-blue-700 mb-4; /* Reduced heading size */
+}
+
+/* 🧾 Forms */
+.login-form,
+.signup-form {
+  @apply flex flex-col gap-2;
+}
+
+/* 🔤 Inputs */
+.login-input,
+.signup-input {
+  @apply w-full px-3 py-2 rounded-md border border-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm; /* Compact inputs */
+}
+
+/* 🚀 Buttons */
+.login-btn,
+.signup-btn {
+  @apply bg-blue-600 hover:bg-blue-700 text-white py-2 rounded-full font-semibold text-sm transition-all duration-300; /* Slightly smaller button */
+}
+
+/* 🧭 Navigation Text */
+.signup-text,
+.signin-text {
+  @apply text-gray-600 mt-6;
+}
+
+/* 🔗 Links */
+.signup-link,
+.signin-link {
+  @apply text-blue-600 hover:text-green-600 font-semibold transition-colors duration-300;
+}
+
+::-webkit-scrollbar {
+  width: 8px;
+}
+
+::-webkit-scrollbar-thumb {
+  background: linear-gradient(to bottom, #6366F1, #8B5CF6);
+  border-radius: 10px;
+}
+
+/* Smooth transitions for hover effects */
+* {
+  @apply transition-all duration-200;
+}
+
+/* Section titles */
+h2 {
+  @apply text-lg font-semibold text-indigo-700 mb-3;
+}
+
+/* Table Header */
+thead {
+  @apply uppercase text-xs tracking-wider;
+}
+
+/* Card hover glow */
+.shadow-md:hover {
+  box-shadow: 0 6px 16px rgba(99, 102, 241, 0.25);
+}
