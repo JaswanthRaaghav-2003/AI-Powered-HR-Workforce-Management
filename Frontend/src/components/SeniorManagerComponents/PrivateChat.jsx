@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from "react";
 import axios from "axios";
-import { socket } from "../../socket"; // ✅ shared socket import
+import { socket } from "../../socket";
 
 const API_BASE = import.meta.env.VITE_API_BASE_URL || "http://localhost:5000";
 
@@ -60,13 +60,13 @@ const PrivateChat = ({ manager }) => {
   };
 
   return (
-    <section className="bg-gray-800 p-6 rounded-xl shadow-md">
-      <h3 className="text-2xl font-semibold mb-4">Private Chat - Assign Tasks</h3>
+    <section className="bg-indigo-800 p-6 rounded-xl shadow-md">
+      <h3 className="text-2xl font-semibold mb-4">Private Chat 💬 - Assign Tasks 🎯</h3>
 
       <div className="flex">
         {/* Employee List */}
-        <div className="w-1/4 border-r border-gray-700 pr-4">
-          <h4 className="text-lg mb-2 font-semibold">Team Members</h4>
+        <div className="w-1/3 border-r border-green-700 pr-4">
+          <h4 className="text-lg mb-2 text-green-400">Team Members</h4>
           {employees.map((emp) => (
             <div
               key={emp._id}
@@ -77,7 +77,7 @@ const PrivateChat = ({ manager }) => {
               className={`p-2 rounded-md cursor-pointer ${
                 selectedEmp?._id === emp._id
                   ? "bg-blue-600 text-white"
-                  : "hover:bg-gray-700 text-gray-300"
+                  : "hover:bg-green-700 text-gray-300"
               }`}
             >
               {emp.name}
@@ -89,7 +89,7 @@ const PrivateChat = ({ manager }) => {
         <div className="flex-1 pl-4 flex flex-col">
           {selectedEmp ? (
             <>
-              <div className="flex-1 bg-gray-700 rounded-lg p-4 overflow-y-auto">
+              <div className="flex-1 bg-green-200 rounded-lg p-4 overflow-y-auto">
                 {chat.map((msg, index) => (
                   <div
                     key={index}
@@ -101,7 +101,7 @@ const PrivateChat = ({ manager }) => {
                       className={`inline-block px-3 py-2 rounded-lg ${
                         msg.from === "me"
                           ? "bg-blue-500 text-white"
-                          : "bg-gray-600 text-gray-200"
+                          : "bg-green-600 text-gray-200"
                       }`}
                     >
                       {msg.message}
@@ -115,7 +115,7 @@ const PrivateChat = ({ manager }) => {
                   type="text"
                   value={message}
                   onChange={(e) => setMessage(e.target.value)}
-                  className="flex-1 bg-gray-600 p-2 rounded-l-md outline-none"
+                  className="flex-1 bg-indigo-300 text-black p-2 rounded-l-md outline-none"
                   placeholder={`Message ${selectedEmp.name}`}
                 />
                 <button

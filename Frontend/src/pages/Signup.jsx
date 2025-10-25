@@ -63,7 +63,7 @@ const Signup = () => {
       console.error("Signup error:", err);
       setError(
         err.response?.data?.error || 
-        "Failed to create account. Please try again."
+        "Wait for ADMIN Approval you can signin when the ADMIN Approves your request."
       );
     } finally {
       setLoading(false);

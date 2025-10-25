@@ -16,14 +16,19 @@ const Notification = require("./models/Notification");
 const User = require("./models/User"); 
 const Leave = require("./models/Leave");
 const Message = require("./models/Message");
+const Job = require("./models/Job");
+const Application = require("./models/Application");
 const http = require("http");
 const { Server } = require("socket.io");
 const Task = require("./models/Task");
 const PerformanceReview = require("./models/PerformanceReview");
 const facialRouter = require("./logicfacial/facialdata"); 
 const Attendance = require("./models/Attendance");
-
-
+const authRoutes = require("./Routes/authRoutes");
+const notificationRoutes = require("./Routes/notificationRoutes");
+const jobRoutes = require("./Routes/jobRoutes");
+const applicationRoutes = require("./Routes/applicationRoutes");
+const initTaskRoutes = require("./Routes/taskRoutes");
 
 
 
@@ -60,6 +65,17 @@ app.use((req, res, next) => {
   next();
 });
 
+
+const server = http.createServer(app);
+const io = new Server(server, {
+  cors: {
+    origin: ["http://localhost:3000"], // frontend origin - adjust for production
+    credentials: true,
+  },
+});
+
+const activeUsers = new Map(); 
+
 // Body parser
 app.use(
   express.json({
@@ -74,10 +90,17 @@ app.use(
   })
 );
 
+app.use("/", authRoutes);
+app.use("/", notificationRoutes);
 app.use(express.urlencoded({ extended: true }));
 app.use(express.json({ limit: "10mb" })); // allow large payloads for descriptors
 app.use(express.urlencoded({ extended: true }));
 app.use(facialRouter);
+app.use("/jobs", jobRoutes);
+app.use("/applications", applicationRoutes);
+app.use("/tasks", initTaskRoutes(io, activeUsers));
+
+app.use("/uploads", express.static(uploadsDir));
 
 
 app.get("/", (req, res) => res.send("HRMS Facial Attendance Server Running"));
@@ -94,57 +117,6 @@ mongoose
     process.exit(1);
   });
 
-// ------------------- MONGOOSE MODELS ------------------- //
-
-
-
-// Job Schema
-const jobSchema = new mongoose.Schema({
-  title: String,
-  jobSummary: String,
-  responsibilities: String,
-  qualifications: String,
-  preferredQualifications: String,
-  department: String,
-  location: String,
-  employmentType: String,
-  salaryRange: String,
-  postedBy: { type: mongoose.Schema.Types.ObjectId, ref: "User" },
-  createdAt: { type: Date, default: Date.now },
-});
-const Job = mongoose.model("Job", jobSchema);
-
-// Application Schema
-const applicationSchema = new mongoose.Schema({
-  userId: { type: mongoose.Schema.Types.ObjectId, ref: "User" },
-  jobId: { type: mongoose.Schema.Types.ObjectId, ref: "Job" },
-  jobTitle: String,
-  fullName: { type: String, required: true },
-  email: { type: String, required: true },
-  phone: String,
-  address: String,
-  eligibility: String,
-  linkedin: String,
-  github: String,
-  qualification: String,
-  expectedSalary: String,
-  preferredLocation: String,
-  noticePeriod: String,
-  startDate: String,
-  employmentType: String,
-  experience: String,
-  skills: String,
-  references: String,
-  coverLetter: String,
-  resumePath: String,
-  shortlisting: {
-    score: Number,
-    summary: String,
-    modelRunAt: Date,
-  },
-  createdAt: { type: Date, default: Date.now },
-});
-const Application = mongoose.model("Application", applicationSchema);
 
 // ------------------- MIDDLEWARE ------------------- //
 
@@ -161,289 +133,6 @@ const authenticateToken = (req, res, next) => {
     next();
   });
 };
-
-// ------------------- AUTH ROUTES ------------------- //
-// POST /signup
-app.post("/signup", async (req, res) => {
-  try {
-    const { name, email, role, department, password, confirmPassword } =
-      req.body;
-
-    if (!name || !email || !role || !password || !confirmPassword)
-      return res.status(400).json({ error: "All fields are required" });
-
-    if (password !== confirmPassword)
-      return res.status(400).json({ error: "Passwords do not match" });
-
-    const existingUser = await User.findOne({ email: email.toLowerCase() });
-    if (existingUser)
-      return res.status(409).json({ error: "User already exists" });
-
-    const hashedPassword = await bcrypt.hash(password, 10);
-
-    const newUser = new User({
-      name,
-      email: email.toLowerCase(),
-      role,
-      department: role === "HR Manager" ? undefined : department,
-      password: hashedPassword,
-      status: "Pending",
-    });
-
-    await newUser.save();
-
-    // Notify Admin
-    await Notification.create({
-      message: `${name} (${email}) has signed up and awaits admin approval.`,
-      type: "User",
-      relatedUser: newUser._id,
-    });
-
-    res.status(201).json({
-      ok: true,
-      message: "Signup successful. Awaiting admin approval.",
-    });
-  } catch (err) {
-    console.error("Error in /signup:", err);
-    res.status(500).json({ error: "Wait Until Admin Approves Your Request." });
-  }
-});
-
-// POST /login
-app.post("/login", async (req, res) => {
-  try {
-    const { nameOrEmail, password } = req.body;
-    if (!nameOrEmail || !password)
-      return res
-        .status(400)
-        .json({ error: "Name/Email and password are required" });
-
-    const user = await User.findOne({
-      $or: [
-        { email: nameOrEmail.toLowerCase() },
-        { name: new RegExp(`^${nameOrEmail}$`, "i") },
-      ],
-    });
-
-    if (!user) return res.status(401).json({ error: "Invalid credentials" });
-    const isValid = await bcrypt.compare(password, user.password);
-    if (!isValid) return res.status(401).json({ error: "Invalid credentials" });
-
-    // ✅ Allow Admin login without approval
-    if (user.role !== "Admin") {
-      if (user.status === "Pending")
-        return res.status(403).json({ error: "Awaiting admin approval." });
-      if (user.status === "Rejected")
-        return res.status(403).json({ error: "Your request was rejected." });
-    }
-
-    const token = jwt.sign(
-      { id: user._id, email: user.email, role: user.role },
-      JWT_SECRET,
-      { expiresIn: "7d" }
-    );
-
-    res.json({
-      ok: true,
-      message: "Login successful",
-      token,
-      user: {
-        id: user._id,
-        name: user.name,
-        email: user.email,
-        role: user.role,
-        department: user.department,
-        status: user.status,
-      },
-    });
-  } catch (err) {
-    console.error("Error in /login:", err);
-    res.status(500).json({ error: "Failed to login" });
-  }
-});
-
-// GET /me
-app.get("/me", authenticateToken, async (req, res) => {
-  try {
-    const user = await User.findById(req.user.id).select("-password");
-    if (!user) return res.status(404).json({ error: "User not found" });
-    res.json({ ok: true, user });
-  } catch (error) {
-    console.error("Error in GET /me:", error);
-    res
-      .status(500)
-      .json({ error: "Failed to get user data", message: error.message });
-  }
-});
-
-// GET /users → Admin-only access
-app.get("/users", authenticateToken, async (req, res) => {
-  try {
-    if (req.user.role !== "Admin")
-      return res.status(403).json({ error: "Access denied. Admin only." });
-
-    const users = await User.find().select("-password");
-    res.json({ ok: true, users });
-  } catch (error) {
-    console.error("Error in GET /users:", error);
-    res
-      .status(500)
-      .json({ error: "Failed to get users", message: error.message });
-  }
-});
-
-// ------------------- NOTIFICATION ROUTES ------------------- //
-
-// ✅ Get all signup notifications (Admin only)
-app.get("/api/notifications", authenticateToken, async (req, res) => {
-  try {
-    if (req.user.role !== "Admin")
-      return res.status(403).json({ error: "Access denied. Admin only." });
-
-    // Fetch pending users for admin approval
-    const pendingUsers = await User.find({ status: "Pending" }).select(
-      "name email department role status createdAt"
-    );
-
-    res.json(pendingUsers);
-  } catch (error) {
-    console.error("Error fetching notifications:", error);
-    res.status(500).json({ error: "Failed to fetch notifications" });
-  }
-});
-
-// Auto-trigger: Add a new notification when signup happens
-app.post("/add-notification", async (req, res) => {
-  try {
-    const { message, type } = req.body;
-    const notification = new Notification({ message, type });
-    await notification.save();
-    res.json({ ok: true, notification });
-  } catch (error) {
-    res.status(500).json({ error: "Failed to create notification" });
-  }
-});
-
-app.get("/pending-users", authenticateToken, async (req, res) => {
-  try {
-    if (req.user.role !== "Admin")
-      return res.status(403).json({ error: "Access denied" });
-    const pendingUsers = await User.find({ status: "Pending" }).select(
-      "-password"
-    );
-    res.json({ ok: true, users: pendingUsers });
-  } catch (error) {
-    res.status(500).json({ error: "Failed to fetch pending users" });
-  }
-});
-
-// ✅ Approve a user signup
-app.post(
-  "/api/notifications/approve/:id",
-  authenticateToken,
-  async (req, res) => {
-    try {
-      if (req.user.role !== "Admin")
-        return res.status(403).json({ error: "Access denied" });
-
-      const user = await User.findByIdAndUpdate(
-        req.params.id,
-        { status: "Approved" },
-        { new: true }
-      );
-
-      if (!user) return res.status(404).json({ error: "User not found" });
-
-      await Notification.create({
-        message: `Your account has been approved by the Admin.`,
-        type: "Approval",
-        recipient: user._id,
-      });
-
-      res.json({ ok: true, message: "User approved successfully" });
-    } catch (err) {
-      console.error("Error approving user:", err);
-      res.status(500).json({ error: "Failed to approve user" });
-    }
-  }
-);
-
-// ✅ Reject a user signup
-app.post(
-  "/api/notifications/reject/:id",
-  authenticateToken,
-  async (req, res) => {
-    try {
-      if (req.user.role !== "Admin")
-        return res.status(403).json({ error: "Access denied" });
-
-      const user = await User.findByIdAndUpdate(
-        req.params.id,
-        { status: "Rejected" },
-        { new: true }
-      );
-
-      if (!user) return res.status(404).json({ error: "User not found" });
-
-      await Notification.create({
-        message: `Your signup request has been rejected by the Admin.`,
-        type: "Rejection",
-        recipient: user._id,
-      });
-
-      res.json({ ok: true, message: "User rejected successfully" });
-    } catch (err) {
-      console.error("Error rejecting user:", err);
-      res.status(500).json({ error: "Failed to reject user" });
-    }
-  }
-);
-
-// GET /notifications/me  -> notifications for the logged-in user (or global Admin notifications if you want)
-app.get("/notifications/me", authenticateToken, async (req, res) => {
-  try {
-    // Fetch notifications either targeted to the user OR global (recipient null)
-    const notifications = await Notification.find({
-      $or: [{ recipient: req.user.id }, { recipient: null }],
-    })
-      .sort({ createdAt: -1 })
-      .limit(50);
-    res.json({ ok: true, notifications });
-  } catch (error) {
-    console.error("Error in GET /notifications/me:", error);
-    res
-      .status(500)
-      .json({ error: "Failed to fetch notifications", details: error.message });
-  }
-});
-
-// PATCH /notifications/:id/read  -> mark a notification as read (user or admin)
-app.patch("/notifications/:id/read", authenticateToken, async (req, res) => {
-  try {
-    const notification = await Notification.findById(req.params.id);
-    if (!notification)
-      return res.status(404).json({ error: "Notification not found" });
-
-    // If notification has a recipient, only that recipient or admin can mark
-    if (
-      notification.recipient &&
-      notification.recipient.toString() !== req.user.id &&
-      req.user.role !== "Admin"
-    ) {
-      return res.status(403).json({ error: "Access denied" });
-    }
-
-    notification.isRead = true;
-    await notification.save();
-    res.json({ ok: true, notification });
-  } catch (error) {
-    console.error("Error in PATCH /notifications/:id/read:", error);
-    res
-      .status(500)
-      .json({ error: "Failed to update notification", details: error.message });
-  }
-});
-
 
 
 
@@ -777,13 +466,7 @@ function normalizeDept(dept) {
 
 
 
-const server = http.createServer(app);
-const io = new Server(server, {
-  cors: {
-    origin: ["http://localhost:3000"], // frontend origin - adjust for production
-    credentials: true,
-  },
-});
+
 
 // helper: verify token for socket handshake
 async function verifySocketToken(token) {
@@ -926,11 +609,6 @@ app.post("/chat/:department", authenticateToken, async (req, res) => {
 
 
 
-
-
-
-
-
 // PUT /employee/update-personal-info
 app.put("/employee/update-personal-info", authenticateToken, async (req, res) => {
   try {
@@ -1013,15 +691,7 @@ app.get("/employees/team", authenticateToken, async (req, res) => {
 
 
 
-
-
-
-
-
-
-
-
-const activeUsers = new Map(); // Map(userId -> socketId)
+// Map(userId -> socketId)
 
 
 // --- Socket Authentication Middleware ---
@@ -1114,73 +784,6 @@ io.on("connection", (socket) => {
 });
 
 
-
-
-// ------------------- TASK ROUTES ------------------- //
-
-// Assign a task manually via API
-app.post("/tasks/assign", authenticateToken, async (req, res) => {
-  try {
-    const { assignedToId, name, description, priority, due } = req.body;
-
-    if (!assignedToId || !name) return res.status(400).json({ error: "Employee and task name required" });
-
-    const manager = await Employee.findOne({ email: req.user.email });
-    if (!manager || !["Manager", "Senior Manager"].includes(manager.role)) {
-      return res.status(403).json({ error: "Only managers can assign tasks" });
-    }
-
-    const task = await Task.create({
-      name,
-      description,
-      priority,
-      due,
-      assignedBy: manager._id,
-      assignedTo: assignedToId,
-    });
-
-    // Emit task to employee if connected
-    const recipientSocket = activeUsers.get(assignedToId);
-    if (recipientSocket) {
-      io.to(recipientSocket).emit("receivePrivateMessage", { message: name, from: manager._id, asTask: true, task });
-    }
-
-    res.json({ ok: true, task });
-  } catch (err) {
-    console.error(err);
-    res.status(500).json({ error: "Failed to assign task", details: err.message });
-  }
-});
-
-// Fetch tasks of an employee
-app.get("/tasks/:employeeId", authenticateToken, async (req, res) => {
-  try {
-    const employeeId = req.params.employeeId;
-    const tasks = await Task.find({ assignedTo: employeeId }).sort({ createdAt: -1 });
-    res.json({ ok: true, tasks, personalTodos: [] });
-  } catch (err) {
-    console.error(err);
-    res.status(500).json({ error: "Failed to fetch tasks", details: err.message });
-  }
-});
-
-
-// Fetch team members of a manager
-app.get("/api/employees/team/:managerId", async (req, res) => {
-  try {
-    const managerId = req.params.managerId;
-
-    // Find employees whose reportingManager matches this string
-    const team = await Employee.find({
-      reportingManager: managerId, // This now works since it's a String
-    }).select("name email department empId role jobTitle");
-
-    res.json({ employees: team });
-  } catch (err) {
-    console.error("Error fetching team:", err);
-    res.status(500).json({ message: "Server error fetching team" });
-  }
-});
 
 // Save performance review
 app.post("/api/performance/review", async (req, res) => {
@@ -1436,157 +1039,6 @@ app.post("/api/facial/match", async (req, res) => {
 
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-// ------------------- JOB ROUTES ------------------- //
-app.get("/jobs", async (req, res) => {
-  try {
-    const jobs = await Job.find().populate("postedBy", "name email");
-    res.json(jobs);
-  } catch (error) {
-    console.error("Error in GET /jobs:", error);
-    res
-      .status(500)
-      .json({ error: "Failed to get jobs", message: error.message });
-  }
-});
-
-app.post("/jobs", async (req, res) => {
-  try {
-    const newJob = new Job({ ...req.body });
-    await newJob.save();
-    res.status(201).json({ ok: true, job: newJob });
-  } catch (error) {
-    console.error("Error in POST /jobs:", error);
-    res
-      .status(500)
-      .json({ error: "Failed to create job", message: error.message });
-  }
-});
-
-// Helper function to safely parse JSON
-function safeParseJSON(value) {
-  if (!value) return value;
-  if (typeof value === "object") return value;
-  try {
-    return JSON.parse(value);
-  } catch {
-    return value;
-  }
-}
-
-// POST /applications
-app.post("/applications", upload.single("resume"), async (req, res) => {
-  try {
-    const body = req.body;
-    const resumeFile = req.file
-      ? `/uploads/${path.basename(req.file.path)}`
-      : null;
-    let skills = body.skills || "";
-    if (
-      typeof skills === "string" &&
-      (skills.startsWith("[") || skills.startsWith("{"))
-    )
-      skills = safeParseJSON(skills);
-
-    const newApp = new Application({
-      jobTitle: body.jobTitle || null,
-      fullName: body.fullName || "",
-      email: body.email || "",
-      phone: body.phone || "",
-      address: body.address || "",
-      eligibility: body.eligibility || "",
-      linkedin: body.linkedin || "",
-      github: body.github || "",
-      qualification: body.qualification || "",
-      expectedSalary: body.expectedSalary || "",
-      preferredLocation: body.preferredLocation || "",
-      noticePeriod: body.noticePeriod || "",
-      startDate: body.startDate || "",
-      employmentType: body.employmentType || "",
-      experience: body.experience || "",
-      skills: typeof skills === "object" ? JSON.stringify(skills) : skills,
-      references: body.references || "",
-      coverLetter: body.coverLetter || "",
-      resumePath: resumeFile,
-    });
-
-    await newApp.save();
-    res.json({ ok: true, application: newApp });
-  } catch (error) {
-    console.error("Error in POST /applications:", error);
-    res
-      .status(500)
-      .json({ error: "Failed to create application", message: error.message });
-  }
-});
-
-app.get("/applications", async (req, res) => {
-  try {
-    const query = {};
-    if (req.query.jobId) query.jobId = req.query.jobId;
-    const apps = await Application.find(query)
-      .populate("userId", "name email")
-      .populate("jobId", "title department");
-    res.json(apps);
-  } catch (error) {
-    console.error("Error in GET /applications:", error);
-    res
-      .status(500)
-      .json({ error: "Failed to get applications", message: error.message });
-  }
-});
-
-// Serve uploaded resumes
-app.use("/uploads", express.static(uploadsDir));
 
 // ------------------- AI SHORTLISTING ------------------- //
 

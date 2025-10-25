@@ -12,8 +12,8 @@ export default function Sidebar({ active="dashboard", onNavigate = ()=>{} }) {
   ];
 
   return (
-    <aside className="w-72 bg-white/90 border-r p-4 min-h-screen">
-      <div className="text-sm text-slate-500 uppercase mb-4">Workspace</div>
+    <aside className="w-72 bg-gradient-to-r from-indigo-900 to-sky-900/90 border-r p-4 min-h-screen">
+      <div className="text-sm text-white uppercase font-bold mb-4">Workspace 🏢</div>
       <nav className="space-y-1">
         {items.map(it => (
           <button
@@ -27,11 +27,11 @@ export default function Sidebar({ active="dashboard", onNavigate = ()=>{} }) {
         ))}
       </nav>
 
-      <div className="mt-6 text-xs text-slate-500">
+      <div className="mt-6 text-xs text-indigo-500">
         <div>Quick Links</div>
         <ul className="mt-2 space-y-1">
-          <li className="hover:text-indigo-600 cursor-pointer">Payslips</li>
-          <li className="hover:text-indigo-600 cursor-pointer">Company Policies</li>
+          <li className="hover:text-indigo-900 cursor-pointer">Payslips</li>
+          <li className="hover:text-indigo-900 cursor-pointer">Company Policies</li>
         </ul>
       </div>
     </aside>

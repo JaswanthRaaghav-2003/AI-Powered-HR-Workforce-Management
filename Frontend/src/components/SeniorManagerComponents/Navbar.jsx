@@ -10,8 +10,8 @@ const Navbar = ({  onOpenInfo }) => {
   }
 
   return (
-    <nav className="flex justify-between items-center bg-gray-800 px-6 py-4 shadow-lg">
-      <h2 className="text-xl font-semibold">Senior Manager Dashboard</h2>
+    <nav className="flex justify-between items-center bg-indigo-800 px-6 py-4 shadow-lg">
+      <p className="text-xl text-white ">Senior Manager Dashboard</p>
       <div className="flex items-center gap-6">
         <button className="relative">
           <Bell className="w-6 h-6 hover:text-blue-400" />

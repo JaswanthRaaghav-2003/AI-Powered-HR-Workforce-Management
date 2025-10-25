@@ -4,10 +4,10 @@ import QuickActions from "./QuickActions";
 
 export default function WelcomeWidget({ user, todaySchedule, notifications, onClock, onLeave, onTimesheet, clockedIn }) {
   return (
-    <section className="bg-white rounded-2xl p-4 shadow">
+    <section className="rounded-2xl p-4 shadow">
       <div className="flex items-start justify-between gap-6">
         <div className="flex-1">
-          <h2 className="text-xl font-semibold">Good morning, {user.name.split(" ")[0]}</h2>
+          <p className="text-2xl text-indigo-900 font-semibold">WELCOME BACK 😇, {user.name.split(" ")[0]}</p>
           <p className="text-sm text-slate-500">Here's your day at a glance.</p>
 
           <div className="mt-4 grid grid-cols-2 gap-4">
@@ -25,7 +25,7 @@ export default function WelcomeWidget({ user, todaySchedule, notifications, onCl
             </div>
 
             <div className="p-3 bg-slate-50 rounded">
-              <div className="text-xs text-slate-500">Urgent</div>
+              <div className="text-xs text-slate-500">Urgent ⌛</div>
               <ul className="mt-2 space-y-2 text-sm">
                 {notifications.slice(0,3).map(n => (
                   <li key={n.id} className="text-sm">
@@ -40,12 +40,12 @@ export default function WelcomeWidget({ user, todaySchedule, notifications, onCl
 
         <div className="w-96">
           <div className="mb-3">
-            <div className="text-xs text-slate-500">Quick Actions</div>
+            <div className="text-xs text-slate-500">Quick Actions 🏃🏻</div>
             <QuickActions onClock={onClock} onLeave={onLeave} onTimesheet={onTimesheet} clockedIn={clockedIn}/>
           </div>
 
           <div className="bg-slate-50 p-3 rounded">
-            <div className="text-xs text-slate-500">Today summary</div>
+            <div className="text-xl text-slate-500">Today summary ⌚</div>
             <div className="mt-2 text-sm">You have <span className="font-medium">2</span> meetings and <span className="font-medium">1</span> pending approval.</div>
           </div>
         </div>

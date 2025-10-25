@@ -15,12 +15,12 @@ export default function Navbar({ user = {}, onLogout = () => {} , notifications 
   }, []);
 
   return (
-    <header className="flex items-center justify-between px-6 py-3 bg-gradient-to-r from-indigo-600 to-sky-500 text-white shadow">
-      <div className="flex items-center gap-4">
-        <div className="w-10 h-10 rounded-lg bg-white/10 flex items-center justify-center font-bold text-white">EM</div>
+    <header className="flex items-center justify-between px-6 py-3 bg-gradient-to-r from-indigo-900 to-sky-900 text-white shadow">
+      <div className="flex items-center gap-2">
+        <div className="w-15 h-15 rounded-lg bg-white/10 flex items-center justify-center font-bold text-white"> ED </div>
         <div>
-          <div className="text-lg font-semibold">Employee Portal</div>
-          <div className="text-xs opacity-90">{user.department} • {user.jobTitle}</div>
+          <div className="text-xl text-yellow-500">Employee Dashboard</div>
+          <div className="text-xl opacity-90">{user.department} • {user.jobTitle}</div>
         </div>
       </div>
 
