@@ -1,0 +1,14 @@
+express
+mongoose
+multer
+path
+fs
+cors
+axios
+bcryptjs
+jsonwebtoken
+pdf-parse
+textract
+xlsx
+socket.io
+dotenv
