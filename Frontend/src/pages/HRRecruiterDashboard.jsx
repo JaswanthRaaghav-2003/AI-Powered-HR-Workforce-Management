@@ -6,7 +6,7 @@ import ReportsChart from "../components/HRcomponents/ReportsChart";
 import AIAssistantPanel from "../components/HRcomponents/AIAssistantPanel";
 
 // Replace with your Gemini API Key
-const GEMINI_API_KEY = "Your_Gemini_API_KEY";
+const GEMINI_API_KEY = "AIzaSyDmTIp6OlpUjpQuDJWIfmAFekYdZcNy1qo";
 
 const HRRecruiterDashboard = () => {
   const [showForm, setShowForm] = useState(false);

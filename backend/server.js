@@ -13,6 +13,7 @@ const textract = require("textract");
 const xlsx = require("xlsx");
 const Employee = require("./models/Employee");
 const Notification = require("./models/Notification");
+const DepartmentMessage = require("./models/DepartmentMessage");
 const User = require("./models/User"); 
 const Leave = require("./models/Leave");
 const Message = require("./models/Message");
@@ -29,6 +30,8 @@ const notificationRoutes = require("./Routes/notificationRoutes");
 const jobRoutes = require("./Routes/jobRoutes");
 const applicationRoutes = require("./Routes/applicationRoutes");
 const initTaskRoutes = require("./Routes/taskRoutes");
+const { initSocketIO } = require("./logicfacial/logics");
+const deptChatRoutes = require("./Routes/deptchat");
 
 
 
@@ -36,14 +39,9 @@ const app = express();
 app.use(cors());
 
 const PORT = process.env.PORT || 5000;
-const JWT_SECRET =
-  process.env.JWT_SECRET ||
-  "your-super-secret-jwt-key-change-this-in-production";
-const PALM_API_KEY =
-  process.env.GEMINI_API_KEY || "AIzaSyDmTIp6OlpUjpQuDJWIfmAFekYdZcNy1qo";
-const MONGODB_URI =
-  process.env.MONGODB_URI ||
-  "mongodb+srv://Username:Password@cluster0.r0dbrfy.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0";
+const JWT_SECRET =process.env.JWT_SECRET;
+const PALM_API_KEY = process.env.GEMINI_API_KEY;
+const MONGODB_URI =  process.env.MONGODB_URI;
 
 // Ensure uploads directory
 const uploadsDir = path.join(__dirname, "uploads");
@@ -74,7 +72,9 @@ const io = new Server(server, {
   },
 });
 
+
 const activeUsers = new Map(); 
+initSocketIO(io);
 
 // Body parser
 app.use(
@@ -99,8 +99,10 @@ app.use(facialRouter);
 app.use("/jobs", jobRoutes);
 app.use("/applications", applicationRoutes);
 app.use("/tasks", initTaskRoutes(io, activeUsers));
-
 app.use("/uploads", express.static(uploadsDir));
+app.get("/", (req, res) => res.send("💬 Department Chat Server Running"));
+app.use("/chat", deptChatRoutes);
+
 
 
 app.get("/", (req, res) => res.send("HRMS Facial Attendance Server Running"));
@@ -133,6 +135,7 @@ const authenticateToken = (req, res, next) => {
     next();
   });
 };
+
 
 
 
@@ -458,154 +461,6 @@ app.post("/leaves", authenticateToken, async (req, res) => {
   }
 });
 
-
-function normalizeDept(dept) {
-  return dept?.trim().toLowerCase();
-}
-
-
-
-
-
-
-// helper: verify token for socket handshake
-async function verifySocketToken(token) {
-  // If you already have token verification logic, reuse it; this is sample using jwt
-  try {
-    if (!token) throw new Error("No token");
-    const payload = jwt.verify(token.split(" ")[1] || token, process.env.JWT_SECRET);
-    // payload should contain user id (e.g. { id: '...' })
-    const user = await User.findById(payload.id);
-    if (!user) throw new Error("User not found");
-    return user;
-  } catch (err) {
-    console.error("Socket auth failed:", err.message || err);
-    return null;
-  }
-}
-
-// use middleware to authenticate socket connection
-io.use(async (socket, next) => {
-  const token = socket.handshake.auth?.token || socket.handshake.headers?.authorization;
-  const user = await verifySocketToken(token);
-  if (!user) return next(new Error("Authentication error"));
-  socket.user = user; // attach user to socket
-  next();
-});
-
-io.on("connection", (socket) => {
-  console.log("Socket connected:", socket.id, "user:", socket.user?.email);
-
-  // join a department room
- socket.on("joinDepartment", (department) => {
-  if (!socket.user) return socket.emit("errorMessage", "Unauthorized");
-
-  if (normalizeDept(socket.user.department) !== normalizeDept(department)) {
-    return socket.emit("errorMessage", "You are not a member of this department");
-  }
-
-  const roomName = `dept_${normalizeDept(department)}`;
-  socket.join(roomName);
-  console.log(`${socket.user.email} joined ${roomName}`);
-});
-
-  // handle sendMessage (payload: { department, text })
-  socket.on("sendMessage", async ({ department, text }) => {
-    try {
-      if (!socket.user) return socket.emit("errorMessage", "Unauthorized");
-     
-      if (!text || !text.trim()) return;
-
-       if (normalizeDept(socket.user.department) !== normalizeDept(department)) {
-    return socket.emit("errorMessage", "Cannot send to other department");
-  }
-      
-
-      // persist message to DB
-      const message = await Message.create({
-        department,
-        sender: socket.user._id,
-        text,
-      });
-
-      // populate sender with name & email
-      const populated = await message.populate("sender", "name email");
-       const roomName = `dept_${normalizeDept(department)}`;
-      // emit to room
-     
-      io.to(roomName).emit("receiveMessage", {
-        _id: populated._id,
-        department: populated.department,
-        text: populated.text,
-        sender: {
-          _id: populated.sender._id,
-          name: populated.sender.name,
-          email: populated.sender.email,
-        },
-        createdAt: populated.createdAt,
-      });
-    } catch (err) {
-      console.error("sendMessage error:", err);
-      socket.emit("errorMessage", "Failed to send message");
-    }
-  });
-
-  socket.on("disconnect", () => {
-    console.log("Socket disconnected:", socket.id);
-  });
-});
-
-// finally start server using server.listen instead of app.listen
-
-
-// Get messages for a department
-app.get("/chat/:department", authenticateToken, async (req, res) => {
-  try {
-    const department = req.params.department;
-
-    // Ensure user belongs to this department
-    const user = await User.findById(req.user.id);
-    if (!user || user.department !== department)
-      return res.status(403).json({ error: "Access denied" });
-
-    const messages = await Message.find({ department })
-      .populate("sender", "name email")
-      .sort({ createdAt: 1 });
-
-    res.json({ ok: true, messages });
-  } catch (err) {
-    console.error(err);
-    res.status(500).json({ error: "Failed to get messages" });
-  }
-});
-
-// Send message to department
-app.post("/chat/:department", authenticateToken, async (req, res) => {
-  try {
-    const { text } = req.body;
-    const department = req.params.department;
-
-    if (!text || !text.trim())
-      return res.status(400).json({ error: "Message cannot be empty" });
-
-    const user = await User.findById(req.user.id);
-    if (!user || user.department !== department)
-      return res.status(403).json({ error: "Access denied" });
-
-    const message = await Message.create({
-      department,
-      sender: user._id,
-      text,
-    });
-
-    const populated = await message.populate("sender", "name email");
-
-    res.json({ ok: true, message: populated });
-  } catch (err) {
-    console.error(err);
-    res.status(500).json({ error: "Failed to send message" });
-  }
-});
 
 
 

@@ -7,7 +7,7 @@ const API_BASE = import.meta.env.VITE_API_BASE_URL || "http://localhost:5000";
 
 const DepartmentChat = ({ department }) => {
   const [message, setMessage] = useState("");
-  const [messages, setMessages] = useState([]); // array of { _id, text, sender: { name, _id }, createdAt }
+  const [messages, setMessages] = useState([]); 
   const [team, setTeam] = useState([]);
   const [error, setError] = useState(null);
   const socketRef = useRef(null);
