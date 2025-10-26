@@ -1,0 +1,15 @@
+react
+react-dom
+react-scripts
+react-router-dom
+axios
+socket.io-client
+@heroicons/react
+lucide-react
+react-toastify
+classnames
+tailwindcss
+postcss
+autoprefixer
+framer-motion
+react-query
